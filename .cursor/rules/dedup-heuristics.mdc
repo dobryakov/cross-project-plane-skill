@@ -1,0 +1,8 @@
+---
+description: Root cause notes for cross-project-plane dedup
+globs: skill/scripts/**
+---
+
+# Dedup heuristics
+
+Root cause (2026-11-15): plain Jaccard under-scored paraphrases (sherpa default vs TRANSCRIBE-1 → 0.28 → false `create`). Fix: token aliases, title-coverage boost, audit boost only with overlap; theme match → `comment`/`ask`, not silent create.
