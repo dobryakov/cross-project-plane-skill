@@ -16,23 +16,44 @@ from lib_plane import (
     fingerprint,
     is_open_item,
     load_config,
-    score_work_item,
+    recent_audit_work_item_ids,
+    score_work_item_details,
     work_item_url,
 )
 
 
 def decide(scored, T: float):
+    """Return (decision, match). Prefer comment/ask over silent create on theme match."""
     if not scored:
         return "create", None
     best = scored[0]
     second = scored[1] if len(scored) > 1 else None
+    thematically_related = (
+        best.get("shared_count", 0) >= 2
+        or best.get("shared_title_count", 0) >= 2
+        or best.get("title_coverage", 0) >= 0.6
+    )
+
+    # Prior filing for same dependency + same theme → attach.
+    if best.get("audit_hit") and thematically_related:
+        return "comment", best
+
+    # Strong thematic: most title tokens covered + several shared.
+    if best.get("title_coverage", 0) >= 0.7 and best.get("shared_title_count", 0) >= 3:
+        return "comment", best
     if best["score"] >= T and (second is None or best["score"] - second["score"] >= 0.1):
         return "comment", best
+
     close = [c for c in scored if c["score"] >= 0.5]
     if len(close) >= 2 and close[0]["score"] - close[-1]["score"] <= 0.1:
         return "ask", None
+
+    # Middling lexical OR partial theme overlap → ask, never auto-create.
     if 0.45 <= best["score"] < T:
         return "ask", None
+    if thematically_related and best["score"] >= 0.30:
+        return "ask", None
+
     return "create", None
 
 
@@ -54,6 +75,8 @@ def main() -> None:
     per_page = int(search.get("work_item_page_size", 100))
     max_pages = int(search.get("max_work_item_pages", 5))
 
+    audit_ids = recent_audit_work_item_ids(args.dependency_key)
+
     client = PlaneClient()
     items = client.list_work_items(
         args.workspace_slug,
@@ -65,12 +88,25 @@ def main() -> None:
     for item in items:
         if not is_open_item(item, prefer_open):
             continue
-        s = score_work_item(item, args.query, args.external_id)
+        details = score_work_item_details(item, args.query, args.external_id)
         seq = item.get("sequence_id")
+        wid = item.get("id")
+        audit_hit = wid in audit_ids
+        score = details["score"]
+        # Audit boost only when there is already some token overlap (same theme).
+        if audit_hit and (
+            details["shared_count"] >= 1 or details["title_coverage"] >= 0.5
+        ):
+            score = min(1.0, score + 0.35)
         scored.append(
             {
-                "score": round(s, 4),
-                "id": item.get("id"),
+                "score": round(score, 4),
+                "shared_count": details["shared_count"],
+                "shared_title_count": details["shared_title_count"],
+                "title_coverage": details["title_coverage"],
+                "shared_tokens": details["shared_tokens"],
+                "audit_hit": audit_hit,
+                "id": wid,
                 "name": item.get("name"),
                 "sequence_id": seq,
                 "key": (
@@ -88,7 +124,10 @@ def main() -> None:
                 "external_id": item.get("external_id"),
             }
         )
-    scored.sort(key=lambda x: x["score"], reverse=True)
+    scored.sort(
+        key=lambda x: (x["score"], x.get("audit_hit", False), x.get("title_coverage", 0)),
+        reverse=True,
+    )
     action, match = decide(scored, T)
     fp = None
     if args.dependency_key:

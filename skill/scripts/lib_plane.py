@@ -314,16 +314,40 @@ def compact(s: str) -> str:
     return re.sub(r"[_\-\s\.]+", "", s)
 
 
+# Map variant spellings to a shared stem for overlap (not full stemming).
+TOKEN_ALIASES = {
+    "transcribe": "transcrib",
+    "transcriber": "transcrib",
+    "transcribator": "transcrib",
+    "transcription": "transcrib",
+    "diarization": "diariz",
+    "diarisation": "diariz",
+    "diarize": "diariz",
+    "diarise": "diariz",
+    "defaults": "default",
+    "backend": "backend",
+    "backends": "backend",
+}
+
+
+def normalize_token(tok: str) -> str:
+    return TOKEN_ALIASES.get(tok, tok)
+
+
 def tokenize(text: str) -> list[str]:
     toks = re.findall(r"[a-z0-9]+", text.lower())
-    return [t for t in toks if len(t) >= 3 and t not in STOPWORDS]
+    out = []
+    for t in toks:
+        if len(t) < 3 or t in STOPWORDS:
+            continue
+        out.append(normalize_token(t))
+    return out
 
 
 def jaccard(a: set[str], b: set[str]) -> float:
     if not a or not b:
         return 0.0
     return len(a & b) / len(a | b)
-
 
 def text_of_work_item(item: dict) -> str:
     parts = [
@@ -463,27 +487,91 @@ def score_project(project: dict, signals: dict[str, Any]) -> float:
     return min(score, 1.0)
 
 
-def score_work_item(item: dict, query: str, external_id: str | None = None) -> float:
+def score_work_item_details(
+    item: dict, query: str, external_id: str | None = None
+) -> dict[str, Any]:
+    """Lexical + thematic overlap score for dedup.
+
+    Returns score in [0,1] plus diagnostics used by decide():
+    shared_count, title_coverage, shared_tokens.
+    """
     title = item.get("name") or ""
     body = text_of_work_item(item)
     q_toks = set(tokenize(query))
     t_toks = set(tokenize(title))
     b_toks = set(tokenize(body))
+    all_item = t_toks | b_toks
+    shared = q_toks & all_item
+    shared_title = q_toks & t_toks
+    title_coverage = (len(shared_title) / len(t_toks)) if t_toks else 0.0
+
     score = 0.0
     score += 0.55 * jaccard(q_toks, t_toks)
     score += 0.25 * jaccard(q_toks, b_toks)
+
+    # Contiguous phrase in raw title (pre-alias), keep as soft boost.
     q_list = tokenize(query)
+    title_norm = " ".join(tokenize(title))
     if len(q_list) >= 2:
         for i in range(len(q_list) - 1):
-            phrase = f"{q_list[i]} {q_list[i+1]}"
-            if phrase in title.lower():
+            phrase = f"{q_list[i]} {q_list[i + 1]}"
+            if phrase in title_norm:
                 score += 0.25
                 break
+
+    # Thematic boosts: title mostly covered by query, or several shared tokens.
+    if title_coverage >= 0.7 and len(shared_title) >= 3:
+        score += 0.40
+    elif title_coverage >= 0.6 and len(shared_title) >= 2:
+        score += 0.25
+    elif len(shared) >= 3:
+        score += 0.30
+    elif len(shared) >= 2:
+        score += 0.15
+
     if external_id and item.get("external_id") == external_id:
         score += 0.40
     if len(title.strip()) <= 6 and title.strip().lower() in {"fix", "update", "bug"}:
         score -= 0.20
-    return max(0.0, min(score, 1.0))
+
+    return {
+        "score": max(0.0, min(score, 1.0)),
+        "shared_count": len(shared),
+        "shared_title_count": len(shared_title),
+        "title_coverage": round(title_coverage, 4),
+        "shared_tokens": sorted(shared),
+    }
+
+
+def score_work_item(item: dict, query: str, external_id: str | None = None) -> float:
+    return float(score_work_item_details(item, query, external_id)["score"])
+
+
+def recent_audit_work_item_ids(dependency_key: str | None, limit: int = 50) -> set[str]:
+    """Work item ids previously created/commented for this dependency key."""
+    if not dependency_key:
+        return set()
+    path = home() / "audit.jsonl"
+    if not path.exists():
+        return set()
+    found: set[str] = set()
+    rows = []
+    for line in path.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    for row in rows[-limit:]:
+        if row.get("dependency_key") != dependency_key:
+            continue
+        if row.get("event") not in {"work_item_created", "work_item_commented"}:
+            continue
+        wid = (row.get("plane") or {}).get("work_item_id")
+        if wid:
+            found.add(wid)
+    return found
 
 
 def parse_signals_json(raw: str | None) -> dict[str, Any]:

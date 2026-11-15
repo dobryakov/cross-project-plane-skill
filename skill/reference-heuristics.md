@@ -28,23 +28,28 @@ Open items only when `prefer_open_states_only` is true.
 
 | Evidence | Score |
 | --- | --- |
-| Title token Jaccard | up to 0.55 |
+| Title token Jaccard (alias-normalized) | up to 0.55 |
 | Distinctive 2-token phrase in title | +0.25 |
 | Description token Jaccard | up to 0.25 |
-| Matching external_id / prior fingerprint | +0.40 |
+| Title coverage ≥ 0.7 with ≥ 3 shared title tokens | +0.40 |
+| Title coverage ≥ 0.6 with ≥ 2 shared / ≥ 3 shared anywhere | +0.25 / +0.30 |
+| Matching external_id | +0.40 |
+| Prior audit create/comment for same dependency key (only with token overlap) | +0.35; with theme → comment |
 | Tiny generic title | −0.20 |
+
+Aliases map variants like `transcribe`/`transcribator`, `diarization`/`diarize`.
 
 **Judgment:** duplicate = same root cause / deliverable, not shared keywords only.
 
-| Lexical outcome | Action |
+| Lexical / theme outcome | Action |
 | --- | --- |
+| Audit hit for dependency key, or strong title coverage | Comment |
 | `best ≥ T` and clear winner | Comment |
 | Several close mid/high scores | Ask |
-| `0.45 ≤ best < T` | Ask |
-| `best < 0.45` | Create |
+| `0.45 ≤ best < T`, or ≥ 2 shared tokens with score ≥ 0.30 | Ask |
+| Weak / no overlap | Create |
 
-When theme matches but score is middling, prefer comment on closest match or ask —
-never silent second create.
+Never silent second create when theme overlap is plausible — prefer comment or ask.
 
 ## Signals JSON example
 
