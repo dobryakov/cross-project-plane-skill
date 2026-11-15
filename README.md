@@ -1,12 +1,11 @@
 # Cross-Project Plane
 
-Design specs for a **personal agent skill** (Cursor IDE and Claude) that routes upstream change requests into the right [Plane](https://plane.so) Cloud project — without hard-coding project lists or stuffing Plane credentials into every repo’s `.env`.
-
+Personal agent skill (Cursor IDE and Claude) that routes upstream change requests into the right [Plane](https://plane.so) Cloud project — without hard-coding project lists or stuffing Plane credentials into every repo’s `.env`.
 ## The problem
 
 While working in a consumer project, an agent often discovers that a fix belongs elsewhere: an internal library, a shared API, or an MCP server owned by another team. That insight usually dies in chat. Filing it well means knowing *which* Plane project owns the dependency, avoiding duplicate work items, and storing API credentials once per machine — not once per repository.
 
-## What this skill will do
+## What this skill does
 
 1. Detect when progress depends on a change **outside** the current project.
 2. Resolve the dependency to a Plane `workspace` + `project_id` via a **user-level registry**, with heuristic Plane search (and optional dependency `.plane.json`) when the registry misses — then **write successful matches back**.
@@ -25,11 +24,24 @@ While working in a consumer project, an agent often discovers that a fix belongs
 | Issue shape | Free-form name/description; no mandatory assignee, labels, or template |
 | Scope | Personal skill only (`~/.cursor/skills/…` and Claude equivalent) |
 
-## Repository status
+## Install (Cursor personal skill)
 
-This repo currently holds **English design specifications** only. Implementation of `SKILL.md` and helper scripts is not included yet.
+```bash
+mkdir -p ~/.cursor/skills
+ln -sfn /path/to/this/repo ~/.cursor/skills/cross-project-plane
+```
 
-Start here: **[specs/README.md](specs/README.md)**
+Configure once:
+
+```bash
+mkdir -p ~/.config/cross-project-plane && chmod 700 ~/.config/cross-project-plane
+# credentials + config.json — see reference-config.md
+python3 scripts/plane_auth_check.py
+```
+
+Entry point: **[SKILL.md](SKILL.md)** · Scripts: `scripts/` · Design: **[specs/README.md](specs/README.md)**
+
+## Specs
 
 | Spec | Topic |
 | --- | --- |
@@ -43,6 +55,8 @@ Start here: **[specs/README.md](specs/README.md)**
 | [08-skill-contract](specs/08-skill-contract.md) | Packaging for Cursor and Claude |
 | [09-logging](specs/09-logging.md) | Audit log |
 | [10-plane-api-binding](specs/10-plane-api-binding.md) | Plane Cloud API assumptions |
+
+Also: [reference-config.md](reference-config.md), [reference-heuristics.md](reference-heuristics.md).
 
 ## Non-goals (for now)
 
