@@ -30,8 +30,11 @@ Do **not** install under `~/.cursor/skills-cursor/` (Cursor reserved).
 
 ## Package layout
 
+In the git repo the installable package lives under **`skill/`** (symlink
+`~/.cursor/skills/cross-project-plane` → `…/repo/skill`, not the repo root):
+
 ```text
-cross-project-plane/
+skill/
 ├── SKILL.md                 # workflow + rules (keep < 500 lines)
 ├── reference-config.md      # points at ~/.config/cross-project-plane layout
 ├── reference-heuristics.md  # scoring details (progressive disclosure)

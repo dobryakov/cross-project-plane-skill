@@ -28,19 +28,18 @@ While working in a consumer project, an agent often discovers that a fix belongs
 
 ```bash
 mkdir -p ~/.cursor/skills
-ln -sfn /path/to/this/repo ~/.cursor/skills/cross-project-plane
+ln -sfn /path/to/this/repo/skill ~/.cursor/skills/cross-project-plane
 ```
 
 Configure once:
 
 ```bash
 mkdir -p ~/.config/cross-project-plane && chmod 700 ~/.config/cross-project-plane
-# credentials + config.json — see reference-config.md
-python3 scripts/plane_auth_check.py
+# credentials + config.json — see skill/reference-config.md
+python3 skill/scripts/plane_auth_check.py
 ```
 
-Entry point: **[SKILL.md](SKILL.md)** · Scripts: `scripts/` · Design: **[specs/README.md](specs/README.md)**
-
+Skill package: **[skill/](skill/)** (`SKILL.md` + `scripts/`) · Design: **[specs/README.md](specs/README.md)**
 ## Specs
 
 | Spec | Topic |
@@ -56,7 +55,7 @@ Entry point: **[SKILL.md](SKILL.md)** · Scripts: `scripts/` · Design: **[specs
 | [09-logging](specs/09-logging.md) | Audit log |
 | [10-plane-api-binding](specs/10-plane-api-binding.md) | Plane Cloud API assumptions |
 
-Also: [reference-config.md](reference-config.md), [reference-heuristics.md](reference-heuristics.md).
+Also: [skill/reference-config.md](skill/reference-config.md), [skill/reference-heuristics.md](skill/reference-heuristics.md).
 
 ## Non-goals (for now)
 

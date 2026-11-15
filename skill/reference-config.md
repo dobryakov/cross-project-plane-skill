@@ -58,14 +58,17 @@ See specs/04-registry.md.
 mkdir -p ~/.config/cross-project-plane && chmod 700 ~/.config/cross-project-plane
 # write credentials + config.json
 chmod 600 ~/.config/cross-project-plane/credentials
-python3 scripts/plane_auth_check.py
+python3 skill/scripts/plane_auth_check.py   # from repo root
+# or, after install: python3 ~/.cursor/skills/cross-project-plane/scripts/plane_auth_check.py
 ```
 
 ## Install skill (Cursor)
 
+Symlink the **`skill/`** subdirectory (not the whole repo):
+
 ```bash
 mkdir -p ~/.cursor/skills
-ln -sfn /path/to/cross-project-plane ~/.cursor/skills/cross-project-plane
+ln -sfn /path/to/cross-project-plane/skill ~/.cursor/skills/cross-project-plane
 ```
 
-Same idea for Claude personal skills if needed. Repo root must contain `SKILL.md`.
+Same idea for Claude personal skills. The symlink target must contain `SKILL.md` at its root.
